@@ -24,6 +24,7 @@ export default function Planner() {
             <Link to="/" className="hover:text-brand-accent transition">Home</Link>
             <Link to="/keune" className="hover:text-brand-accent transition">Keune</Link>
             <Link to="/tarieven" className="hover:text-brand-accent transition">Tarieven</Link>
+            <Link to="/afspraak" className="hover:text-brand-accent transition">Afspraak</Link>
             <a href="tel:0790000000" className="hover:text-brand-accent transition">Bel</a>
             <a href="https://wa.me/310790000000" className="hover:text-brand-accent transition">WhatsApp</a>
           </nav>
