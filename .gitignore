@@ -61,3 +61,14 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Supabase (uit supabase/.gitignore samengevoegd)
+supabase/.branches
+supabase/.temp
+supabase/.env.keys
+supabase/.env.local
+supabase/.env.*.local
+supabase/.env
+supabase/config.toml
+supabase/snippets/
+!supabase/migrations/**
