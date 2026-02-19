@@ -27,3 +27,25 @@ body {
   pointer-events: none;
   border-radius: inherit;
 }
+
+@layer components {
+  .input {
+    @apply w-full rounded-xl border border-gray-200 bg-white/90 px-4 py-3 text-gray-900 placeholder:text-gray-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-brand-pink/50 focus:border-brand-pink transition;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-pink text-white font-semibold px-4 py-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 text-gray-800 px-4 py-2 bg-white hover:bg-gray-50 transition;
+  }
+
+  .pill-tab {
+    @apply inline-flex items-center gap-2 rounded-full bg-white text-gray-700 px-4 py-2 border border-gray-200 shadow-sm;
+  }
+
+  .card-soft {
+    @apply bg-white rounded-2xl border border-brand-pink/10 shadow-sm;
+  }
+}

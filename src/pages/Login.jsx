@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../hooks/useAuth";
@@ -11,10 +11,11 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  if (user && isAdmin) {
-    navigate("/admin", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user && isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [user, isAdmin, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();

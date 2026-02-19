@@ -1,0 +1,260 @@
+                    <input
+                      type="time"
+                      className="input"
+                      value={openingForm.open_time}
+                      onChange={(e) => setOpeningForm({ ...openingForm, open_time: e.target.value })}
+                    />
+                    <input
+                      type="time"
+                      className="input"
+                      value={openingForm.close_time}
+                      onChange={(e) => setOpeningForm({ ...openingForm, close_time: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button type="submit" className="btn-primary" disabled={saving}>
+                      {saving ? "Opslaan..." : isEditingOpening ? "Bijwerken" : "Opslaan"}
+                    </button>
+                    {isEditingOpening && (
+                      <button type="button" className="btn-secondary" onClick={() => setOpeningForm(emptyOpening)}>
+                        Annuleer
+                      </button>
+                    )}
+                  </div>
+                </>
+              }
+              list={
+                <div className="space-y-2">
+                  {opening.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center justify-between bg-white border rounded-lg px-4 py-3 shadow-sm"
+                    >
+                      <div className="text-base font-semibold">{row.day}</div>
+                      <div className="text-base font-medium">
+                        {row.open_time?.slice(0, 5)} - {row.close_time?.slice(0, 5)}
+                      </div>
+                      <div className="flex gap-3 text-sm">
+                        <button className="text-brand-pink" onClick={() => setOpeningForm({ ...row })}>
+                          Bewerken
+                        </button>
+                        <button className="text-red-600" onClick={() => handleOpeningDelete(row.id)}>
+                          Verwijderen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {opening.length === 0 && <p className="text-sm text-gray-500">Nog geen tijden.</p>}
+                </div>
+              }
+            />
+          )}
+
+          {tab === "content" && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-2">
+                {[{ key: "home", label: "Home" }, { key: "tarieven", label: "Tarieven" }, { key: "afspraak", label: "Afspraak" }, { key: "contact", label: "Contact" }].map((ct) => (
+                  <button
+                    key={ct.key}
+                    onClick={() => setContentTab(ct.key)}
+                    className={`pill-tab ${contentTab === ct.key ? "border-brand-pink text-brand-pink" : "text-gray-700"}`}
+                  >
+                    {ct.label}
+                  </button>
+                ))}
+              </div>
+
+              {contentTab === "home" && (
+                <div className="space-y-6">
+                  <Card title="Homepage – USP's">
+                    <form className="flex gap-3 mb-4" onSubmit={submitUsp}>
+                      <input
+                        className="input flex-1"
+                        placeholder="Nieuwe USP"
+                        value={uspInput}
+                        onChange={(e) => setUspInput(e.target.value)}
+                      />
+                      <button type="submit" className="btn-primary">
+                        Voeg toe
+                      </button>
+                    </form>
+                    <ul className="space-y-2">
+                      {usps.map((u) => (
+                        <li
+                          key={u.id}
+                          className="border rounded-lg px-3 py-2 flex items-center justify-between text-sm"
+                        >
+                          <span>{u.text}</span>
+                          <button className="text-red-600" onClick={() => handleUspDelete(u.id)}>
+                            Verwijder
+                          </button>
+                        </li>
+                      ))}
+                      {usps.length === 0 && <p className="text-sm text-gray-500">Nog geen USP's.</p>}
+                    </ul>
+                  </Card>
+
+                  <Card title="Homepage – Reviews">
+                    <form className="grid gap-3 md:grid-cols-2" onSubmit={submitReview}>
+                      <input
+                        className="input"
+                        placeholder="Naam"
+                        value={reviewForm.name}
+                        onChange={(e) => setReviewForm({ ...reviewForm, name: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Rating (1-5)"
+                        value={reviewForm.rating}
+                        onChange={(e) => setReviewForm({ ...reviewForm, rating: e.target.value })}
+                      />
+                      <textarea
+                        className="input md:col-span-2"
+                        rows={2}
+                        placeholder="Review tekst"
+                        value={reviewForm.text}
+                        onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
+                      />
+                      <div className="md:col-span-2">
+                        <button type="submit" className="btn-primary">
+                          Voeg review toe
+                        </button>
+                      </div>
+                    </form>
+                    <div className="divide-y mt-4">
+                      {reviews.map((r) => (
+                        <div key={r.id} className="py-3 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{r.name}</p>
+                            <p className="text-gray-500 text-sm">{"?".repeat(r.rating || 5)}</p>
+                            <p className="text-gray-700">{r.text}</p>
+                          </div>
+                          <button className="text-red-600 text-sm" onClick={() => handleReviewDelete(r.id)}>
+                            Verwijder
+                          </button>
+                        </div>
+                      ))}
+                      {reviews.length === 0 && <p className="text-sm text-gray-500">Nog geen reviews.</p>}
+                    </div>
+                  </Card>
+
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <Card title="Homepage – Gallery">
+                      <form className="grid gap-3 mb-4" onSubmit={submitGallery}>
+                        <div className="flex gap-3">
+                          <input
+                            className="input flex-1"
+                            placeholder="Afbeelding URL"
+                            value={galleryInput}
+                            onChange={(e) => setGalleryInput(e.target.value)}
+                          />
+                          <button type="submit" className="btn-primary">
+                            Voeg toe
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setGalleryFile(e.target.files?.[0] || null)}
+                            className="text-sm"
+                          />
+                          {galleryFile && (
+                            <span className="text-sm text-gray-600">
+                              Gekozen: {galleryFile.name} ({Math.round(galleryFile.size / 1024)} KB)
+                            </span>
+                          )}
+                        </div>
+                        {error && <p className="text-sm text-red-600">{error}</p>}
+                      </form>
+                      <div className="grid sm:grid-cols-3 gap-3">
+                        {gallery.map((g) => (
+                          <div key={g.id} className="relative border rounded-xl overflow-hidden">
+                            <img src={g.url} alt="Gallery" className="w-full h-28 object-cover" />
+                            <button
+                              className="absolute top-1 right-1 bg-white/80 text-red-600 text-xs px-2 py-1 rounded"
+                              onClick={() => handleGalleryDelete(g.id)}
+                            >
+                              Verwijder
+                            </button>
+                          </div>
+                        ))}
+                        {gallery.length === 0 && <p className="text-sm text-gray-500">Nog geen afbeeldingen.</p>}
+                      </div>
+                    </Card>
+
+                    <Card title="Home – Hero">
+                      <form className="grid gap-3" onSubmit={submitSiteInfo}>
+                        <input
+                          className="input"
+                          placeholder="Hero tagline"
+                          value={siteInfo.hero_tagline || ""}
+                          onChange={(e) => setSiteInfo({ ...siteInfo, hero_tagline: e.target.value })}
+                        />
+                        <input
+                          className="input"
+                          placeholder="Hero title"
+                          value={siteInfo.hero_title || ""}
+                          onChange={(e) => setSiteInfo({ ...siteInfo, hero_title: e.target.value })}
+                        />
+                        <textarea
+                          className="input"
+                          rows={2}
+                          placeholder="Hero subtitel"
+                          value={siteInfo.hero_subtitle || ""}
+                          onChange={(e) => setSiteInfo({ ...siteInfo, hero_subtitle: e.target.value })}
+                        />
+                        <button type="submit" className="btn-primary w-fit">
+                          Opslaan
+                        </button>
+                      </form>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {contentTab === "tarieven" && (
+                <Card title="Tarieven pagina">
+                  <p className="text-sm text-gray-600">
+                    Tarieven beheer je via de tab "Diensten". Deze pagina toont de services automatisch.
+                  </p>
+                </Card>
+              )}
+
+              {contentTab === "afspraak" && (
+                <Card title="Afspraak / Planner">
+                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitSiteInfo}>
+                    <input
+                      className="input md:col-span-2"
+                      placeholder="Booking widget URL (planner iframe)"
+                      value={siteInfo.booking_url || ""}
+                      onChange={(e) => setSiteInfo({ ...siteInfo, booking_url: e.target.value })}
+                    />
+                    <button type="submit" className="btn-primary w-fit">
+                      Opslaan
+                    </button>
+                  </form>
+                </Card>
+              )}
+
+              {contentTab === "contact" && (
+                <Card title="Contact & Map">
+                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitSiteInfo}>
+                    <input
+                      className="input md:col-span-2"
+                      placeholder="Adres"
+                      value={siteInfo.address || ""}
+                      onChange={(e) => setSiteInfo({ ...siteInfo, address: e.target.value })}
+                    />
+                    <input
+                      className="input"
+                      placeholder="Telefoon"
+                      value={siteInfo.phone || ""}
+                      onChange={(e) => setSiteInfo({ ...siteInfo, phone: e.target.value })}
+                    />
+                    <input
+                      className="input"
+                      placeholder="WhatsApp"
+                      value={siteInfo.whatsapp || ""}
+                      onChange={(e) => setSiteInfo({ ...siteInfo, whatsapp: e.target.value })}
+                    />

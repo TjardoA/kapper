@@ -224,12 +224,6 @@ export default function Home() {
             <Link to="/afspraak" className="hover:text-brand-accent transition">
               Afspraak
             </Link>
-            <a href={`tel:${phone}`} className="hover:text-brand-accent transition">
-              Bel
-            </a>
-            <a href={`https://wa.me/${whatsapp}`} className="hover:text-brand-accent transition">
-              WhatsApp
-            </a>
             <button
               onClick={() => navigate("/afspraak")}
               className="bg-brand-dark text-brand-beige px-4 py-2 rounded-full transition hover:bg-brand-dark/85 hover:text-brand-beige hover:shadow-glow"
@@ -264,12 +258,6 @@ export default function Home() {
             <Link to="/afspraak" className="hover:text-brand-accent transition">
               Afspraak
             </Link>
-            <a href={`tel:${phone}`} className="hover:text-brand-accent transition">
-              Bel
-            </a>
-            <a href={`https://wa.me/${whatsapp}`} className="hover:text-brand-accent transition">
-              WhatsApp
-            </a>
           </div>
         </div>
 
@@ -458,19 +446,6 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex gap-2 sm:gap-3 flex-nowrap overflow-x-auto pb-1 whitespace-nowrap">
-                <a
-                  href={`tel:${phone}`}
-                  className="px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-brand-dark/15 text-brand-dark text-sm sm:text-base hover:border-brand-pink transition"
-                >
-                  <span className="sm:hidden">Bel</span>
-                  <span className="hidden sm:inline">Bel salon</span>
-                </a>
-                <a
-                  href={`https://wa.me/${whatsapp}`}
-                  className="px-4 py-2 rounded-full bg-brand-pink text-white text-sm sm:text-base hover:bg-brand-dark transition"
-                >
-                  WhatsApp
-                </a>
                 <button
                   onClick={() => navigate("/afspraak")}
                   className="px-4 py-2 rounded-full bg-brand-dark text-brand-beige text-sm sm:text-base hover:bg-brand-dark/85 transition"
@@ -490,13 +465,18 @@ export default function Home() {
               <h2 className="font-display text-3xl mt-3 mb-4">Kom langs in Zoetermeer</h2>
               <div className="space-y-3 text-brand-dark/80">
                 <p className="font-semibold text-brand-dark">{address}</p>
-                <p>Tel / WhatsApp: {phone}</p>
                 <p>Mail: info@bijmijnkapper.nl</p>
                 <p>Openingstijden:</p>
-                <div className="space-y-1">
-                  {openingList.map((line) => (
-                    <p key={line}>{line}</p>
-                  ))}
+                <div className="space-y-1 tabular-nums">
+                  {openingList.map((line) => {
+                    const [day, ...rest] = line.split(" ");
+                    return (
+                      <div key={line} className="flex gap-3">
+                        <span className="min-w-[110px]">{day}</span>
+                        <span>{rest.join(" ")}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

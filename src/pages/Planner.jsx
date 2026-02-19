@@ -1,9 +1,21 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import '../index.css'
+import { fetchSiteInfo } from '../api/contentApi'
 
 export default function Planner() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [siteInfo, setSiteInfo] = useState(null)
+
+  useEffect(() => {
+    fetchSiteInfo().then(({ data }) => setSiteInfo(data || null))
+  }, [])
+
+  const phone = siteInfo?.phone || '0790000000'
+  const whatsapp = siteInfo?.whatsapp || '310790000000'
+  const bookingUrl =
+    siteInfo?.booking_url ||
+    'https://widget2.meetaimy.com/widgetWeb?salonId=NDk4ODY4&salonEmail=YWZzcHJha2VuQGJpam1pam5rYXBwZXIubmw%3D'
   return (
     <div className="bg-brand-beige min-h-screen text-brand-dark overflow-hidden">
       <header className="bg-white/90 border-b border-brand-dark/5">
@@ -25,8 +37,8 @@ export default function Planner() {
             <Link to="/keune" className="hover:text-brand-accent transition">Keune</Link>
             <Link to="/tarieven" className="hover:text-brand-accent transition">Tarieven</Link>
             <Link to="/afspraak" className="hover:text-brand-accent transition">Afspraak</Link>
-            <a href="tel:0790000000" className="hover:text-brand-accent transition">Bel</a>
-            <a href="https://wa.me/310790000000" className="hover:text-brand-accent transition">WhatsApp</a>
+            <a href={`tel:${phone}`} className="hover:text-brand-accent transition">Bel</a>
+            <a href={`https://wa.me/${whatsapp}`} className="hover:text-brand-accent transition">WhatsApp</a>
           </nav>
           <button
             className="lg:hidden text-brand-dark border border-brand-dark/20 rounded-lg px-3 py-2"
@@ -42,8 +54,8 @@ export default function Planner() {
             <Link to="/keune" className="hover:text-brand-accent transition">Keune</Link>
             <Link to="/tarieven" className="hover:text-brand-accent transition">Tarieven</Link>
             <Link to="/afspraak" className="hover:text-brand-accent transition">Afspraak</Link>
-            <a href="tel:0790000000" className="hover:text-brand-accent transition">Bel</a>
-            <a href="https://wa.me/310790000000" className="hover:text-brand-accent transition">WhatsApp</a>
+            <a href={`tel:${phone}`} className="hover:text-brand-accent transition">Bel</a>
+            <a href={`https://wa.me/${whatsapp}`} className="hover:text-brand-accent transition">WhatsApp</a>
           </div>
         </div>
       </header>
@@ -51,7 +63,7 @@ export default function Planner() {
       <main className="px-0">
         <iframe
           title="Online afspraak maken"
-          src="https://widget2.meetaimy.com/widgetWeb?salonId=NDk4ODY4&salonEmail=YWZzcHJha2VuQGJpam1pam5rYXBwZXIubmw%3D"
+          src={bookingUrl}
           className="w-full border-0"
           style={{ minHeight: 'calc(100vh - 72px)' }}
           loading="lazy"
