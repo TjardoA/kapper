@@ -105,7 +105,7 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
-      const [
+     const [
         { data: s },
         { data: t },
         { data: o },
@@ -133,7 +133,14 @@ export default function Home() {
       setOpening(o || []);
       setUsps(u && u.length ? u.map((row) => row.text) : uspFallback);
       setReviews(r && r.length ? r : reviewsFallback);
-      setGallery(g && g.length ? g.map((row) => row.url) : galleryFallback);
+      setGallery(
+        g && g.length
+          ? g.map((row) => ({
+              url: row.url,
+              focal_y: row.focal_y ?? 50,
+            }))
+          : galleryFallback.map((url) => ({ url, focal_y: 50 }))
+      );
       setSiteInfo(info || null);
     })();
   }, []);
@@ -446,26 +453,34 @@ export default function Home() {
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              {(gallery.length ? gallery : galleryFallback)
-                .slice(0, 2)
-                .map((src) => (
+              {gallery.slice(0, 2).map((img, idx) => {
+                const url = img.url || img;
+                const fy = img.focal_y ?? 50;
+                return (
                   <div
-                    key={src}
+                    key={`${url}-${idx}`}
                     className="rounded-2xl overflow-hidden shadow-md grain border border-brand-dark/5"
                   >
                     <img
-                      src={src}
+                      src={url}
                       alt="Salon voorbeeld"
                       className="w-full h-56 object-cover"
+                      style={{ objectPosition: `50% ${fy}%` }}
                     />
                   </div>
-                ))}
+                );
+              })}
               <div className="rounded-2xl overflow-hidden shadow-md grain border border-brand-dark/5 sm:col-span-2">
+                {gallery[2] && (
                 <img
-                  src={(gallery.length ? gallery : galleryFallback)[2]}
+                  src={gallery[2].url || gallery[2]}
                   alt="Hair detail"
                   className="w-full h-64 object-cover"
+                  style={{
+                    objectPosition: `50% ${gallery[2].focal_y ?? 50}%`,
+                  }}
                 />
+                )}
               </div>
             </div>
           </div>

@@ -54,12 +54,17 @@ export const fetchGallery = () =>
     .select("*")
     .order("position", { ascending: true });
 
-export const addGalleryImage = async (url, position = 0) => {
+export const addGalleryImage = async (payload) => {
   return await supabase.from("gallery_images").insert({
-    url,
-    position,
+    url: payload.url,
+    position: payload.position ?? 0,
+    focal_x: payload.focal_x ?? 50,
+    focal_y: payload.focal_y ?? 50,
   });
 };
+
+export const updateGalleryImage = (id, payload) =>
+  supabase.from("gallery_images").update(payload).eq("id", id);
 
 export const deleteGalleryImage = (id) =>
   supabase.from("gallery_images").delete().eq("id", id);

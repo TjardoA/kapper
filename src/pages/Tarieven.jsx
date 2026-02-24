@@ -53,12 +53,6 @@ export default function Tarieven() {
             <Link to="/afspraak" className="hover:text-brand-accent transition">
               Afspraak
             </Link>
-            <a href="tel:0790000000" className="hover:text-brand-accent transition">
-              Bel
-            </a>
-            <a href="https://wa.me/310790000000" className="hover:text-brand-accent transition">
-              WhatsApp
-            </a>
           </nav>
           <button
             className="lg:hidden text-brand-dark border border-brand-dark/20 rounded-lg px-3 py-2"
@@ -86,12 +80,6 @@ export default function Tarieven() {
             <Link to="/afspraak" className="hover:text-brand-accent transition">
               Afspraak
             </Link>
-            <a href="tel:0790000000" className="hover:text-brand-accent transition">
-              Bel
-            </a>
-            <a href="https://wa.me/310790000000" className="hover:text-brand-accent transition">
-              WhatsApp
-            </a>
           </div>
         </div>
       </header>
