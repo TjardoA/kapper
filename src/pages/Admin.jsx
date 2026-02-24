@@ -12,6 +12,7 @@ import {
   fetchUsps,
   addUsp,
   deleteUsp,
+  updateUsp,
   fetchReviews,
   addReview,
   deleteReview,
@@ -21,6 +22,16 @@ import {
   fetchSiteInfo,
   updateSiteInfo,
 } from "../api/contentApi";
+import {
+  fetchTariffCategories,
+  fetchTariffItems,
+  createTariffCategory,
+  updateTariffCategory,
+  deleteTariffCategory,
+  createTariffItem,
+  updateTariffItem,
+  deleteTariffItem,
+} from "../api/tariffsApi";
 
 const emptyService = { id: null, name: "", price: "", duration: "", description: "" };
 const emptyTeam = { id: null, name: "", bio: "", image_url: "" };
@@ -35,6 +46,17 @@ const emptySiteInfo = {
   hero_title: "",
   hero_subtitle: "",
   booking_url: "",
+  about_title: "",
+  about_body: "",
+};
+const emptyTariffCategory = { id: null, title: "", position: 0 };
+const emptyTariffItem = {
+  id: null,
+  category_id: "",
+  name: "",
+  price_numeric: "",
+  price_text: "",
+  position: 0,
 };
 
 const dayOrder = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"];
@@ -61,6 +83,10 @@ export default function Admin() {
   const [reviews, setReviews] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [siteInfo, setSiteInfo] = useState(emptySiteInfo);
+  const [tariffCategories, setTariffCategories] = useState([]);
+  const [tariffItems, setTariffItems] = useState([]);
+  const [tariffCatForm, setTariffCatForm] = useState(emptyTariffCategory);
+  const [tariffItemForm, setTariffItemForm] = useState(emptyTariffItem);
 
   const [serviceForm, setServiceForm] = useState(emptyService);
   const [teamForm, setTeamForm] = useState(emptyTeam);
@@ -70,26 +96,36 @@ export default function Admin() {
   const [reviewForm, setReviewForm] = useState(emptyReview);
   const [galleryInput, setGalleryInput] = useState("");
   const [galleryFile, setGalleryFile] = useState(null);
+  const [heroFile, setHeroFile] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [siteInfoSaving, setSiteInfoSaving] = useState(false);
+  const [siteInfoMessage, setSiteInfoMessage] = useState("");
+  const [editingUspId, setEditingUspId] = useState(null);
 
   const isEditingService = useMemo(() => Boolean(serviceForm.id), [serviceForm.id]);
   const isEditingTeam = useMemo(() => Boolean(teamForm.id), [teamForm.id]);
   const isEditingOpening = useMemo(() => Boolean(openingForm.id), [openingForm.id]);
+  const isEditingTariffCategory = useMemo(() => Boolean(tariffCatForm.id), [tariffCatForm.id]);
+  const isEditingTariffItem = useMemo(() => Boolean(tariffItemForm.id), [tariffItemForm.id]);
 
   useEffect(() => {
     loadAll();
   }, []);
 
   const loadAll = async () => {
-    const [{ data: s }, { data: t }, { data: o }] = await Promise.all([
+    const [{ data: s }, { data: t }, { data: o }, { data: tc }, { data: ti }] = await Promise.all([
       fetchServices(),
       fetchTeam(),
       fetchOpening(),
+      fetchTariffCategories(),
+      fetchTariffItems(),
     ]);
     setServices(s || []);
     setTeam(t || []);
     setOpening(sortOpeningList(o || []));
+    setTariffCategories(tc || []);
+    setTariffItems((ti || []).sort((a, b) => (a.position || 0) - (b.position || 0)));
 
     const [{ data: u }, { data: r }, { data: g }, { data: info }] = await Promise.all([
       fetchUsps(),
@@ -197,6 +233,82 @@ export default function Admin() {
     loadAll();
   };
 
+  // Tariff categories & items
+  const submitTariffCategory = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (!tariffCatForm.title.trim()) return setError("Titel is verplicht");
+    const positionValue =
+      tariffCatForm.position === "" || tariffCatForm.position === null
+        ? 0
+        : Number(tariffCatForm.position);
+    if (Number.isNaN(positionValue)) return setError("Positie moet een getal zijn");
+    setSaving(true);
+    const payload = {
+      title: tariffCatForm.title.trim(),
+      position: positionValue,
+    };
+    const { error: err } = tariffCatForm.id
+      ? await updateTariffCategory(tariffCatForm.id, payload)
+      : await createTariffCategory(payload);
+    setSaving(false);
+    if (err) return setError(err.message);
+    setTariffCatForm(emptyTariffCategory);
+    loadAll();
+  };
+
+  const handleTariffCategoryDelete = async (id) => {
+    if (!confirm("Categorie verwijderen? Bijbehorende items worden ook verwijderd.")) return;
+    const { error: err } = await deleteTariffCategory(id);
+    if (err) return setError(err.message);
+    if (tariffItemForm.category_id === id) setTariffItemForm(emptyTariffItem);
+    loadAll();
+  };
+
+  const submitTariffItem = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (!tariffItemForm.category_id) return setError("Kies een categorie");
+    if (!tariffItemForm.name.trim()) return setError("Naam is verplicht");
+
+    const priceNumericValue =
+      tariffItemForm.price_numeric === "" || tariffItemForm.price_numeric === null
+        ? null
+        : Number(tariffItemForm.price_numeric);
+    const priceTextValue = (tariffItemForm.price_text || "").trim();
+
+    if (priceNumericValue === null && !priceTextValue) return setError("Voer een prijs in of tekst zoals 'Op aanvraag'");
+    if (priceNumericValue !== null && Number.isNaN(priceNumericValue)) return setError("Prijs moet een getal zijn");
+
+    const payload = {
+      category_id: tariffItemForm.category_id,
+      name: tariffItemForm.name.trim(),
+      price_numeric: priceNumericValue,
+      price_text: priceTextValue || null,
+      position:
+        tariffItemForm.position === "" || tariffItemForm.position === null
+          ? 0
+          : Number(tariffItemForm.position),
+    };
+
+    setSaving(true);
+    const { error: err } = tariffItemForm.id
+      ? await updateTariffItem(tariffItemForm.id, payload)
+      : await createTariffItem(payload);
+    setSaving(false);
+    if (err) return setError(err.message);
+    setTariffItemForm(emptyTariffItem);
+    loadAll();
+  };
+
+  const handleTariffItemDelete = async (id) => {
+    if (!confirm("Verwijderen?")) return;
+    const { error: err } = await deleteTariffItem(id);
+    if (err) return setError(err.message);
+    if (tariffItemForm.id === id) setTariffItemForm(emptyTariffItem);
+    loadAll();
+  };
+
   // USP
   const submitUsp = async (e) => {
     e.preventDefault();
@@ -213,14 +325,23 @@ export default function Admin() {
     loadAll();
   };
 
+  const handleUspEditSave = async (id, text, position) => {
+    const { error: err } = await updateUsp(id, { text, position });
+    if (err) return setError(err.message);
+    setEditingUspId(null);
+    loadAll();
+  };
+
   // Reviews
   const submitReview = async (e) => {
     e.preventDefault();
     if (!reviewForm.name.trim() || !reviewForm.text.trim()) return setError("Naam en tekst verplicht");
+    const ratingValue = Number(reviewForm.rating) || 0;
+    if (ratingValue < 1 || ratingValue > 5) return setError("Rating moet tussen 1 en 5 zijn");
     const { error: err } = await addReview({
       name: reviewForm.name.trim(),
       text: reviewForm.text.trim(),
-      rating: Number(reviewForm.rating) || 5,
+      rating: ratingValue,
     });
     if (err) return setError(err.message);
     setReviewForm(emptyReview);
@@ -270,8 +391,31 @@ export default function Admin() {
   // Site info
   const submitSiteInfo = async (e) => {
     e.preventDefault();
-    const { error: err } = await updateSiteInfo(siteInfo);
+    setError(null);
+    setSiteInfoMessage("");
+    setSiteInfoSaving(true);
+    let heroImageUrl = siteInfo.hero_image_url || "";
+
+    if (heroFile) {
+      const filePath = `hero/${Date.now()}_${heroFile.name.replace(/\s+/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage.from("gallery").upload(filePath, heroFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+      if (uploadErr) {
+        setSiteInfoSaving(false);
+        setError(uploadErr.message);
+        return;
+      }
+      const { data } = supabase.storage.from("gallery").getPublicUrl(filePath);
+      heroImageUrl = data.publicUrl;
+    }
+
+    const { error: err } = await updateSiteInfo({ ...siteInfo, hero_image_url: heroImageUrl });
+    setSiteInfoSaving(false);
     if (err) return setError(err.message);
+    setSiteInfoMessage("Opgeslagen");
+    setHeroFile(null);
     loadAll();
   };
 
@@ -584,26 +728,155 @@ export default function Admin() {
 
           {tab === "home" && (
             <div className="space-y-6">
-              <Card title="Homepage - USP's">
+              <Card title="Home - Intro">
+                <form className="grid gap-3" onSubmit={submitSiteInfo}>
+                  <input className="input" placeholder="Hero tagline" value={siteInfo.hero_tagline || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_tagline: e.target.value })} />
+                  <input className="input" placeholder="Hero title" value={siteInfo.hero_title || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_title: e.target.value })} />
+                  <textarea className="input" rows={2} placeholder="Hero subtitel" value={siteInfo.hero_subtitle || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_subtitle: e.target.value })} />
+                  <input className="input" placeholder="Hero afbeelding URL (Keune visual)" value={siteInfo.hero_image_url || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_image_url: e.target.value })} />
+                  <div className="flex flex-col gap-2 text-sm text-gray-600">
+                    <label className="font-medium text-gray-700">Upload hero afbeelding</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setHeroFile(e.target.files?.[0] || null)}
+                      className="text-sm"
+                    />
+                    {heroFile && (
+                      <span className="text-gray-600">
+                        Gekozen: {heroFile.name} ({Math.round(heroFile.size / 1024)} KB)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button type="submit" className="btn-primary w-fit" disabled={siteInfoSaving}>
+                      {siteInfoSaving ? "Opslaan..." : "Opslaan"}
+                    </button>
+                    {siteInfoMessage && <span className="text-sm text-green-600">{siteInfoMessage}</span>}
+                  </div>
+                </form>
+              </Card>
+
+              <Card title="Home - Waarom wij">
+                <form className="grid gap-3" onSubmit={submitSiteInfo}>
+                  <input
+                    className="input"
+                    placeholder="Waarom-wij titel"
+                    value={siteInfo.about_title || ""}
+                    onChange={(e) => setSiteInfo({ ...siteInfo, about_title: e.target.value })}
+                  />
+                  <textarea
+                    className="input"
+                    rows={3}
+                    placeholder="Waarom-wij tekst"
+                    value={siteInfo.about_body || ""}
+                    onChange={(e) => setSiteInfo({ ...siteInfo, about_body: e.target.value })}
+                  />
+                  <button type="submit" className="btn-primary w-fit">Opslaan</button>
+                </form>
+              </Card>
+
+              <Card title="Waarom wij - USP's (bullets)">
                 <form className="flex gap-3 mb-4" onSubmit={submitUsp}>
-                  <input className="input flex-1" placeholder="Nieuwe USP" value={uspInput} onChange={(e) => setUspInput(e.target.value)} />
+                  <input className="input flex-1" placeholder="Nieuwe bullet" value={uspInput} onChange={(e) => setUspInput(e.target.value)} />
                   <button type="submit" className="btn-primary">Voeg toe</button>
                 </form>
                 <ul className="space-y-2">
-                  {usps.map((u) => (
-                    <li key={u.id} className="border rounded-lg px-3 py-2 flex items-center justify-between text-sm">
-                      <span>{u.text}</span>
-                      <button className="text-red-600" onClick={() => handleUspDelete(u.id)}>Verwijder</button>
-                    </li>
-                  ))}
-                  {usps.length === 0 && <p className="text-sm text-gray-500">Nog geen USP's.</p>}
+                  {usps.map((u, idx) => {
+                    const isEditing = editingUspId === u.id;
+                    return (
+                      <li key={u.id} className="border rounded-lg px-3 py-2 flex items-center justify-between text-sm gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          {isEditing ? (
+                            <>
+                              <input
+                                className="input flex-1"
+                                value={u._draftText ?? u.text}
+                                onChange={(e) => {
+                                  const updated = usps.map((item) =>
+                                    item.id === u.id ? { ...item, _draftText: e.target.value } : item,
+                                  );
+                                  setUsps(updated);
+                                }}
+                              />
+                              <input
+                                className="input w-20"
+                                type="number"
+                                value={u._draftPos ?? u.position ?? 0}
+                                onChange={(e) => {
+                                  const updated = usps.map((item) =>
+                                    item.id === u.id ? { ...item, _draftPos: e.target.value } : item,
+                                  );
+                                  setUsps(updated);
+                                }}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <span>{u.text}</span>
+                              <span className="text-xs text-gray-500">({u.position ?? 0})</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                className="text-brand-pink"
+                                onClick={() =>
+                                  handleUspEditSave(
+                                    u.id,
+                                    u._draftText ?? u.text,
+                                    Number(u._draftPos ?? u.position ?? 0),
+                                  )
+                                }
+                              >
+                                Opslaan
+                              </button>
+                              <button
+                                className="text-gray-500"
+                                onClick={() => {
+                                  const reset = usps.map((item) =>
+                                    item.id === u.id ? { ...item, _draftText: undefined, _draftPos: undefined } : item,
+                                  );
+                                  setUsps(reset);
+                                  setEditingUspId(null);
+                                }}
+                              >
+                                Annuleer
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="text-brand-pink" onClick={() => setEditingUspId(u.id)}>
+                                Bewerken
+                              </button>
+                              <button className="text-red-600" onClick={() => handleUspDelete(u.id)}>
+                                Verwijder
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {usps.length === 0 && <p className="text-sm text-gray-500">Nog geen bullets.</p>}
                 </ul>
               </Card>
 
               <Card title="Homepage - Reviews">
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitReview}>
                   <input className="input" placeholder="Naam" value={reviewForm.name} onChange={(e) => setReviewForm({ ...reviewForm, name: e.target.value })} />
-                  <input className="input" placeholder="Rating (1-5)" value={reviewForm.rating} onChange={(e) => setReviewForm({ ...reviewForm, rating: e.target.value })} />
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="1"
+                    placeholder="Rating (1-5)"
+                    value={reviewForm.rating}
+                    onChange={(e) => setReviewForm({ ...reviewForm, rating: e.target.value })}
+                  />
                   <textarea className="input md:col-span-2" rows={2} placeholder="Review tekst" value={reviewForm.text} onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })} />
                   <div className="md:col-span-2">
                     <button type="submit" className="btn-primary">Voeg review toe</button>
@@ -624,50 +897,216 @@ export default function Admin() {
                 </div>
               </Card>
 
-              <div className="grid lg:grid-cols-2 gap-6">
-                <Card title="Homepage - Gallery">
-                  <form className="grid gap-3 mb-4" onSubmit={submitGallery}>
-                    <div className="flex gap-3">
-                      <input className="input flex-1" placeholder="Afbeelding URL" value={galleryInput} onChange={(e) => setGalleryInput(e.target.value)} />
-                      <button type="submit" className="btn-primary">Voeg toe</button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <input type="file" accept="image/*" onChange={(e) => setGalleryFile(e.target.files?.[0] || null)} className="text-sm" />
-                      {galleryFile && <span className="text-sm text-gray-600">Gekozen: {galleryFile.name} ({Math.round(galleryFile.size / 1024)} KB)</span>}
-                    </div>
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                  </form>
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    {gallery.map((g) => (
-                      <div key={g.id} className="relative border rounded-xl overflow-hidden">
-                        <img src={g.url} alt="Gallery" className="w-full h-28 object-cover" />
-                        <button className="absolute top-1 right-1 bg-white/80 text-red-600 text-xs px-2 py-1 rounded" onClick={() => handleGalleryDelete(g.id)}>
-                          Verwijder
-                        </button>
-                      </div>
-                    ))}
-                    {gallery.length === 0 && <p className="text-sm text-gray-500">Nog geen afbeeldingen.</p>}
+              <Card title="Homepage - Gallery">
+                <form className="grid gap-3 mb-4" onSubmit={submitGallery}>
+                  <div className="flex gap-3">
+                    <input className="input flex-1" placeholder="Afbeelding URL" value={galleryInput} onChange={(e) => setGalleryInput(e.target.value)} />
+                    <button type="submit" className="btn-primary">Voeg toe</button>
                   </div>
-                </Card>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input type="file" accept="image/*" onChange={(e) => setGalleryFile(e.target.files?.[0] || null)} className="text-sm" />
+                    {galleryFile && <span className="text-sm text-gray-600">Gekozen: {galleryFile.name} ({Math.round(galleryFile.size / 1024)} KB)</span>}
+                  </div>
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+                </form>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {gallery.map((g) => (
+                    <div key={g.id} className="relative border rounded-xl overflow-hidden">
+                      <img src={g.url} alt="Gallery" className="w-full h-28 object-cover" />
+                      <button className="absolute top-1 right-1 bg-white/80 text-red-600 text-xs px-2 py-1 rounded" onClick={() => handleGalleryDelete(g.id)}>
+                        Verwijder
+                      </button>
+                    </div>
+                  ))}
+                  {gallery.length === 0 && <p className="text-sm text-gray-500">Nog geen afbeeldingen.</p>}
+                </div>
+              </Card>
 
-                <Card title="Home - Hero">
-                  <form className="grid gap-3" onSubmit={submitSiteInfo}>
-                    <input className="input" placeholder="Hero tagline" value={siteInfo.hero_tagline || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_tagline: e.target.value })} />
-                    <input className="input" placeholder="Hero title" value={siteInfo.hero_title || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_title: e.target.value })} />
-                    <textarea className="input" rows={2} placeholder="Hero subtitel" value={siteInfo.hero_subtitle || ""} onChange={(e) => setSiteInfo({ ...siteInfo, hero_subtitle: e.target.value })} />
-                    <button type="submit" className="btn-primary w-fit">Opslaan</button>
-                  </form>
-                </Card>
-              </div>
             </div>
           )}
 
           {tab === "tarievenPage" && (
-            <Card title="Tarieven pagina">
-              <p className="text-sm text-gray-600">
-                Tarieven beheer je via de tab "Diensten". Deze pagina toont de services automatisch.
-              </p>
-            </Card>
+            <div className="space-y-6">
+              <TwoColForm
+                title={isEditingTariffCategory ? "Categorie bewerken" : "Categorie toevoegen"}
+                error={error}
+                onSubmit={submitTariffCategory}
+                saving={saving}
+                form={
+                  <>
+                    <input
+                      className="input"
+                      placeholder="Titel (bijv. Dames)"
+                      value={tariffCatForm.title}
+                      onChange={(e) => setTariffCatForm({ ...tariffCatForm, title: e.target.value })}
+                    />
+                    <input
+                      className="input"
+                      placeholder="Positie (0 = bovenaan)"
+                      value={tariffCatForm.position}
+                      onChange={(e) => setTariffCatForm({ ...tariffCatForm, position: e.target.value })}
+                    />
+                    <div className="flex gap-3">
+                      <button type="submit" className="btn-primary" disabled={saving}>
+                        {saving ? "Opslaan..." : isEditingTariffCategory ? "Bijwerken" : "Opslaan"}
+                      </button>
+                      {isEditingTariffCategory && (
+                        <button type="button" className="btn-secondary" onClick={() => setTariffCatForm(emptyTariffCategory)}>
+                          Annuleer
+                        </button>
+                      )}
+                    </div>
+                  </>
+                }
+                list={
+                  <div className="space-y-2">
+                    {tariffCategories.map((cat) => {
+                      const count = tariffItems.filter((i) => i.category_id === cat.id).length;
+                      return (
+                        <div key={cat.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                          <div>
+                            <p className="font-semibold">{cat.title}</p>
+                            <p className="text-xs text-gray-500">
+                              Positie {cat.position ?? 0} • {count} items
+                            </p>
+                          </div>
+                          <div className="flex gap-3 text-sm">
+                            <button
+                              className="text-brand-pink"
+                              onClick={() => setTariffCatForm({ ...cat, position: cat.position ?? 0 })}
+                            >
+                              Bewerken
+                            </button>
+                            <button className="text-red-600" onClick={() => handleTariffCategoryDelete(cat.id)}>
+                              Verwijderen
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {tariffCategories.length === 0 && <p className="text-sm text-gray-500">Nog geen categorieën.</p>}
+                  </div>
+                }
+              />
+
+              <TwoColForm
+                title={isEditingTariffItem ? "Tariefregel bewerken" : "Tariefregel toevoegen"}
+                error={error}
+                onSubmit={submitTariffItem}
+                saving={saving}
+                form={
+                  <>
+                    <select
+                      className="input"
+                      value={tariffItemForm.category_id}
+                      onChange={(e) => setTariffItemForm({ ...tariffItemForm, category_id: e.target.value })}
+                    >
+                      <option value="">Kies categorie</option>
+                      {tariffCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.title}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="input"
+                      placeholder="Naam (bijv. Wassen knippen)"
+                      value={tariffItemForm.name}
+                      onChange={(e) => setTariffItemForm({ ...tariffItemForm, name: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        className="input"
+                        placeholder="Prijs in € (bijv. 27.50)"
+                        value={tariffItemForm.price_numeric}
+                        onChange={(e) => setTariffItemForm({ ...tariffItemForm, price_numeric: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Prijs tekst (bijv. Op aanvraag)"
+                        value={tariffItemForm.price_text}
+                        onChange={(e) => setTariffItemForm({ ...tariffItemForm, price_text: e.target.value })}
+                      />
+                    </div>
+                    <input
+                      className="input"
+                      placeholder="Positie binnen categorie"
+                      value={tariffItemForm.position}
+                      onChange={(e) => setTariffItemForm({ ...tariffItemForm, position: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Vul of een numerieke prijs of een tekst zoals "Op aanvraag" in.
+                    </p>
+                    <div className="flex gap-3">
+                      <button type="submit" className="btn-primary" disabled={saving}>
+                        {saving ? "Opslaan..." : isEditingTariffItem ? "Bijwerken" : "Opslaan"}
+                      </button>
+                      {isEditingTariffItem && (
+                        <button type="button" className="btn-secondary" onClick={() => setTariffItemForm(emptyTariffItem)}>
+                          Annuleer
+                        </button>
+                      )}
+                    </div>
+                  </>
+                }
+                list={
+                  <div className="space-y-3">
+                    {tariffCategories.map((cat) => {
+                      const items = tariffItems
+                        .filter((i) => i.category_id === cat.id)
+                        .sort((a, b) => (a.position || 0) - (b.position || 0));
+                      return (
+                        <div key={cat.id} className="border rounded-xl p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-semibold">{cat.title}</p>
+                            <span className="text-xs text-gray-500">Positie {cat.position ?? 0}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  <p className="text-xs text-gray-500">Positie {item.position ?? 0}</p>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm">
+                                  <span className="font-semibold text-brand-dark">
+                                    {item.price_text
+                                      ? item.price_text
+                                      : item.price_numeric !== null && item.price_numeric !== undefined
+                                        ? `€${Number(item.price_numeric).toFixed(2).replace(".", ",")}`
+                                        : "-"}
+                                  </span>
+                                  <button
+                                    className="text-brand-pink"
+                                    onClick={() =>
+                                      setTariffItemForm({
+                                        id: item.id,
+                                        category_id: item.category_id,
+                                        name: item.name,
+                                        price_numeric: item.price_numeric ?? "",
+                                        price_text: item.price_text ?? "",
+                                        position: item.position ?? 0,
+                                      })
+                                    }
+                                  >
+                                    Bewerken
+                                  </button>
+                                  <button className="text-red-600" onClick={() => handleTariffItemDelete(item.id)}>
+                                    Verwijderen
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            {items.length === 0 && <p className="text-sm text-gray-500">Nog geen items in deze categorie.</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {tariffCategories.length === 0 && <p className="text-sm text-gray-500">Voeg eerst categorieën toe.</p>}
+                  </div>
+                }
+              />
+            </div>
           )}
 
           {tab === "afspraakPage" && (
@@ -679,9 +1118,12 @@ export default function Admin() {
                   value={siteInfo.booking_url || ""}
                   onChange={(e) => setSiteInfo({ ...siteInfo, booking_url: e.target.value })}
                 />
-                <button type="submit" className="btn-primary w-fit">
-                  Opslaan
-                </button>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <button type="submit" className="btn-primary w-fit" disabled={siteInfoSaving}>
+                    {siteInfoSaving ? "Opslaan..." : "Opslaan"}
+                  </button>
+                  {siteInfoMessage && <span className="text-sm text-green-200 md:text-green-600">{siteInfoMessage}</span>}
+                </div>
               </form>
             </Card>
           )}
@@ -713,9 +1155,12 @@ export default function Admin() {
                   value={siteInfo.maps_url || ""}
                   onChange={(e) => setSiteInfo({ ...siteInfo, maps_url: e.target.value })}
                 />
-                <button type="submit" className="btn-primary w-fit md:col-span-2">
-                  Opslaan
-                </button>
+                <div className="flex items-center gap-3 md:col-span-2">
+                  <button type="submit" className="btn-primary w-fit" disabled={siteInfoSaving}>
+                    {siteInfoSaving ? "Opslaan..." : "Opslaan"}
+                  </button>
+                  {siteInfoMessage && <span className="text-sm text-green-600">{siteInfoMessage}</span>}
+                </div>
               </form>
             </Card>
           )}

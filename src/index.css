@@ -14,6 +14,24 @@ body {
   overflow-x: hidden;
 }
 
+.review-marquee {
+  display: flex;
+  gap: 0.5rem;
+  width: max-content;
+  animation: review-marquee 28s linear infinite;
+}
+.review-marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes review-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 .grain {
   position: relative;
 }

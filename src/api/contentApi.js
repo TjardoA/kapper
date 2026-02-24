@@ -16,6 +16,16 @@ export const addUsp = async (text, position = 0) => {
 
 export const deleteUsp = (id) => supabase.from("usps").delete().eq("id", id);
 
+export const updateUsp = async (id, payload) => {
+  return await supabase
+    .from("usps")
+    .update({
+      text: payload.text,
+      position: payload.position ?? 0,
+    })
+    .eq("id", id);
+};
+
 // =====================
 // Reviews
 // =====================
@@ -58,19 +68,31 @@ export const deleteGalleryImage = (id) =>
 // Site info (UUID singleton)
 // =====================
 
-// Pak gewoon de eerste rij
 export const fetchSiteInfo = () =>
   supabase.from("site_info").select("*").limit(1).single();
 
-// Update op basis van bestaande id
+// Update op basis van bestaande id (GEEN id updaten!)
 export const updateSiteInfo = async (payload) => {
-  const { data } = await supabase
+  // Eerst huidige id ophalen
+  const { data: existing, error: fetchError } = await supabase
     .from("site_info")
     .select("id")
     .limit(1)
     .single();
 
-  if (!data?.id) return { error: { message: "Geen site_info rij gevonden" } };
+  if (fetchError) {
+    return { error: fetchError };
+  }
 
-  return await supabase.from("site_info").update(payload).eq("id", data.id);
+  if (!existing?.id) {
+    return { error: { message: "Geen site_info rij gevonden" } };
+  }
+
+  // id en created_at verwijderen uit payload
+  const { id, created_at, ...cleanPayload } = payload;
+
+  return await supabase
+    .from("site_info")
+    .update(cleanPayload)
+    .eq("id", existing.id);
 };
