@@ -71,4 +71,6 @@ supabase/.env.*.local
 supabase/.env
 supabase/config.toml
 supabase/snippets/
+supabase/seed.sql
+temp.txt
 !supabase/migrations/**

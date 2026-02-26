@@ -40,6 +40,7 @@ const fallbackTeam = [
     bio: "Bekend om natuurlijke blends en glansvolle finishes.",
     image_url:
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80",
+    focal_y: 50,
   },
   {
     name: "Milan",
@@ -47,6 +48,7 @@ const fallbackTeam = [
     bio: "Strakke fades, zachte layers en advies op maat.",
     image_url:
       "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80",
+    focal_y: 50,
   },
   {
     name: "Lotte",
@@ -54,6 +56,7 @@ const fallbackTeam = [
     bio: "Updo's en glossy styling voor je mooiste momenten.",
     image_url:
       "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=400&q=80",
+    focal_y: 50,
   },
 ];
 
@@ -218,6 +221,14 @@ export default function Home() {
   const heroImage =
     siteInfo?.hero_image_url ||
     "/keune_products.webp";
+  const heroFocalY = siteInfo?.hero_focal_y ?? 50;
+  const servicesList = services.length ? services : fallbackServices;
+  const marqueeStyles = `
+    @keyframes services-marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+  `;
   const aboutTitle =
     siteInfo?.about_title || "Een salon die voelt als thuiskomen";
   const aboutBody =
@@ -240,6 +251,7 @@ export default function Home() {
       />
 
       <header className="relative">
+        <style>{marqueeStyles}</style>
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <img
@@ -366,6 +378,7 @@ export default function Home() {
                 src={heroImage}
                 alt="Keune product display"
                 className="w-full h-[420px] object-cover"
+                style={{ objectPosition: `50% ${heroFocalY}%` }}
               />
             </div>
             <div className="absolute -bottom-10 -left-6 bg-white/90 shadow-lg rounded-2xl px-5 py-4 border border-brand-dark/5">
@@ -384,11 +397,8 @@ export default function Home() {
       </header>
 
       <main className="relative">
-        <section
-          id="services"
-          className="max-w-6xl mx-auto px-6 py-12 md:py-16"
-        >
-          <div className="flex items-center justify-between mb-8">
+        <section id="services" className="w-full px-0 py-12 md:py-16">
+          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between mb-8">
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-brand-dark/60">
                 Behandelingen
@@ -399,31 +409,48 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {(services.length ? services : fallbackServices).map((service) => (
-              <div
-                key={service.title}
-                className="bg-white/80 rounded-2xl p-6 shadow-sm border border-brand-dark/5 hover:-translate-y-1 hover:shadow-glow transition grain overflow-hidden"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg text-brand-dark">
-                    {service.title}
-                  </h3>
-                  <span className="text-brand-pink font-medium">
-                    {service.price}
-                  </span>
-                </div>
-                <p className="text-brand-dark/70 leading-relaxed">
-                  {service.description}
-                </p>
-                <button
-                  onClick={() => navigate("/afspraak")}
-                  className="mt-4 text-sm font-semibold text-brand-dark hover:text-brand-accent transition"
+          <div className="relative overflow-hidden w-full px-0 py-6 group">
+            <div
+              className="flex gap-6 items-center"
+              style={{
+                width: "200%",
+                animation: `services-marquee ${Math.max(
+                  18,
+                  servicesList.length * 6,
+                )}s linear infinite`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.animationPlayState = "paused";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.animationPlayState = "running";
+              }}
+            >
+              {[...servicesList, ...servicesList].map((service, idx) => (
+                <div
+                  key={`${service.title}-${idx}`}
+                  className="bg-white/80 rounded-2xl p-6 shadow-sm border border-brand-dark/5 hover:-translate-y-1 hover:shadow-glow transition grain overflow-hidden min-w-[260px] sm:min-w-[320px] min-h-[200px] flex flex-col"
                 >
-                  Boek deze
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-lg text-brand-dark">
+                      {service.title}
+                    </h3>
+                    <span className="text-brand-pink font-medium">
+                      {service.price}
+                    </span>
+                  </div>
+                  <p className="text-brand-dark/70 leading-relaxed flex-1">
+                    {service.description}
+                  </p>
+                  <button
+                    onClick={() => navigate("/afspraak")}
+                    className="mt-4 text-sm font-semibold text-brand-dark hover:text-brand-accent transition"
+                  >
+                    Boek deze
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -506,7 +533,8 @@ export default function Home() {
                 <img
                   src={member.image_url || member.image}
                   alt={member.name}
-                  className="w-full h-56 object-cover"
+                  className="w-full aspect-[16/9] object-cover"
+                  style={{ objectPosition: `50% ${member.focal_y ?? 50}%` }}
                 />
                 <div className="p-5">
                   <p className="text-sm uppercase tracking-[0.15em] text-brand-dark/60">

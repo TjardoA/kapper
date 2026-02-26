@@ -8,13 +8,14 @@ export const fetchTeam = () =>
 
 export const saveTeam = async (payload) => {
   if (payload.id) {
+    const updateData = {};
+    if (payload.name !== undefined) updateData.name = payload.name;
+    if (payload.bio !== undefined) updateData.bio = payload.bio;
+    if (payload.image_url !== undefined) updateData.image_url = payload.image_url;
+    if (payload.focal_y !== undefined) updateData.focal_y = payload.focal_y;
     return await supabase
       .from("team_members")
-      .update({
-        name: payload.name,
-        bio: payload.bio,
-        image_url: payload.image_url,
-      })
+      .update(updateData)
       .eq("id", payload.id);
   }
 
@@ -22,6 +23,7 @@ export const saveTeam = async (payload) => {
     name: payload.name,
     bio: payload.bio,
     image_url: payload.image_url,
+    focal_y: payload.focal_y ?? 50,
   });
 };
 

@@ -45,7 +45,7 @@ const emptyService = {
   duration: "",
   description: "",
 };
-const emptyTeam = { id: null, name: "", bio: "", image_url: "" };
+const emptyTeam = { id: null, name: "", bio: "", image_url: "", focal_y: 50 };
 const emptyOpening = { id: null, day: "", open_time: "", close_time: "" };
 const emptyReview = { name: "", text: "", rating: 5 };
 const emptySiteInfo = {
@@ -56,6 +56,8 @@ const emptySiteInfo = {
   hero_tagline: "",
   hero_title: "",
   hero_subtitle: "",
+  hero_image_url: "",
+  hero_focal_y: 50,
   booking_url: "",
   about_title: "",
   about_body: "",
@@ -114,6 +116,7 @@ export default function Admin() {
   const [serviceForm, setServiceForm] = useState(emptyService);
   const [teamForm, setTeamForm] = useState(emptyTeam);
   const [teamFile, setTeamFile] = useState(null);
+  const [teamPreview, setTeamPreview] = useState(null);
   const [openingForm, setOpeningForm] = useState(emptyOpening);
   const [uspInput, setUspInput] = useState("");
   const [reviewForm, setReviewForm] = useState(emptyReview);
@@ -122,12 +125,16 @@ export default function Admin() {
   const [galleryPreview, setGalleryPreview] = useState(null);
   const [galleryFocalY, setGalleryFocalY] = useState(50);
   const [heroFile, setHeroFile] = useState(null);
+  const [heroPreview, setHeroPreview] = useState(null);
   const [gallerySavingId, setGallerySavingId] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [teamMessage, setTeamMessage] = useState("");
   const [siteInfoSaving, setSiteInfoSaving] = useState(false);
   const [siteInfoMessage, setSiteInfoMessage] = useState("");
   const [editingUspId, setEditingUspId] = useState(null);
+  const [latestUpdated, setLatestUpdated] = useState(null);
+  const [recentUpdates, setRecentUpdates] = useState([]);
 
   const isEditingService = useMemo(
     () => Boolean(serviceForm.id),
@@ -165,6 +172,24 @@ export default function Admin() {
     loadAll();
   }, []);
 
+  useEffect(() => {
+    if (tab === "dashboard") loadAll();
+  }, [tab]);
+
+  useEffect(
+    () => () => {
+      if (heroPreview) URL.revokeObjectURL(heroPreview);
+    },
+    [heroPreview],
+  );
+
+  useEffect(
+    () => () => {
+      if (teamPreview) URL.revokeObjectURL(teamPreview);
+    },
+    [teamPreview],
+  );
+
   const loadAll = async () => {
     const [{ data: s }, { data: t }, { data: o }, { data: tc }, { data: ti }] =
       await Promise.all([
@@ -175,7 +200,12 @@ export default function Admin() {
         fetchTariffItems(),
       ]);
     setServices(s || []);
-    setTeam(t || []);
+    setTeam((prev) =>
+      (t || []).map((row) => ({
+        ...row,
+        focal_y: row.focal_y ?? prev.find((p) => p.id === row.id)?.focal_y ?? 50,
+      })),
+    );
     setOpening(sortOpeningList(o || []));
     setTariffCategories(tc || []);
     setTariffItems(
@@ -192,7 +222,43 @@ export default function Admin() {
     setUsps(u || []);
     setReviews(r || []);
     setGallery(g || []);
-    setSiteInfo(info || emptySiteInfo);
+    setSiteInfo(
+      info
+        ? {
+            ...emptySiteInfo,
+            ...info,
+            hero_focal_y: info.hero_focal_y ?? 50,
+          }
+        : emptySiteInfo,
+    );
+    // Website status & updates
+    const allUpdates = [
+      ...(s || []).map((row) => ({
+        id: row.id,
+        type: "Service",
+        name: row.name,
+        updated_at: row.updated_at || row.created_at,
+      })),
+      ...(t || []).map((row) => ({
+        id: row.id,
+        type: "Teamlid",
+        name: row.name,
+        updated_at: row.updated_at || row.created_at,
+      })),
+    ].filter((row) => row.updated_at);
+
+    const sorted = allUpdates
+      .slice()
+      .sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+
+    setRecentUpdates(sorted.slice(0, 5));
+    if (sorted.length) {
+      setLatestUpdated(sorted[0].updated_at);
+    } else {
+      setLatestUpdated(null);
+    }
   };
 
   const signOut = async () => supabase.auth.signOut();
@@ -233,6 +299,7 @@ export default function Admin() {
   const submitTeam = async (e) => {
     e.preventDefault();
     setError(null);
+    setTeamMessage("");
     if (!teamForm.name.trim()) return setError("Naam is verplicht");
     setSaving(true);
     let imageUrl = teamForm.image_url.trim();
@@ -249,12 +316,23 @@ export default function Admin() {
       name: teamForm.name.trim(),
       bio: teamForm.bio.trim(),
       image_url: imageUrl,
+      focal_y: Number(teamForm.focal_y ?? 50),
     };
     const { error: err } = await saveTeam(payload);
     setSaving(false);
     if (err) return setError(err.message);
+    // Optimistisch bijwerken zodat de kaart niet verspringt na save
+    setTeam((prev) =>
+      prev.map((item) =>
+        item.id === payload.id
+          ? { ...item, ...payload }
+          : item,
+      ),
+    );
     setTeamForm(emptyTeam);
     setTeamFile(null);
+    setTeamPreview(null);
+    setTeamMessage("Opgeslagen");
     loadAll();
   };
 
@@ -483,6 +561,10 @@ export default function Admin() {
     setSiteInfoMessage("");
     setSiteInfoSaving(true);
     let heroImageUrl = siteInfo.hero_image_url || "";
+    const focalY =
+      siteInfo.hero_focal_y === "" || siteInfo.hero_focal_y === null
+        ? 50
+        : Number(siteInfo.hero_focal_y);
 
     if (heroFile) {
       const filePath = `hero/${Date.now()}_${heroFile.name.replace(/\s+/g, "_")}`;
@@ -504,11 +586,15 @@ export default function Admin() {
     const { error: err } = await updateSiteInfo({
       ...siteInfo,
       hero_image_url: heroImageUrl,
+      hero_focal_y: Number.isNaN(focalY)
+        ? 50
+        : Math.min(Math.max(focalY, 0), 100),
     });
     setSiteInfoSaving(false);
     if (err) return setError(err.message);
     setSiteInfoMessage("Opgeslagen");
     setHeroFile(null);
+    setHeroPreview(null);
     loadAll();
   };
 
@@ -566,31 +652,94 @@ export default function Admin() {
 
           {tab === "dashboard" && (
             <div className="space-y-8">
-              <div className="grid md:grid-cols-4 gap-4">
-                <StatCard
-                  title="Totaal Diensten"
-                  value={services.length}
-                  icon="✂️"
-                />
-                <StatCard
-                  title="Medewerkers"
-                  value={team.length}
-                  icon="👥"
-                  color="text-green-600"
-                />
-                <StatCard
-                  title="Totaal Tarieven"
-                  value={`€${statTotalTarief}`}
-                  icon="💶"
-                  color="text-purple-600"
-                />
-                <StatCard
-                  title="Gem. Duur"
-                  value={`${avgDuration || 0} min`}
-                  icon="⏱️"
-                  color="text-orange-500"
-                />
+              <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4">
+                <Card
+                  title={
+                    <div className="flex items-center justify-between">
+                      <span>Website status</span>
+                      <button
+                        onClick={loadAll}
+                        className="text-sm text-brand-pink hover:underline"
+                      >
+                        Vernieuwen
+                      </button>
+                    </div>
+                  }
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <StatusStat label="Diensten" value={services.length} />
+                    <StatusStat label="Teamleden" value={team.length} />
+                    <StatusStat label="Reviews" value={reviews.length} />
+                    <StatusStat label="Gallery" value={gallery.length} />
+                    <div className="col-span-2 sm:col-span-3 text-gray-600 text-xs">
+                      Laatst bijgewerkt:{" "}
+                      {latestUpdated
+                        ? new Date(latestUpdated).toLocaleString("nl-NL")
+                        : "n.v.t."}
+                    </div>
+                  </div>
+                </Card>
+
+                <Card title="Snelle acties">
+                  <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                    <button
+                      onClick={() => setTab("home")}
+                      className="btn-primary w-full text-center"
+                    >
+                      Hero aanpassen
+                    </button>
+                    <button
+                      onClick={() => setTab("services")}
+                      className="btn-secondary w-full text-center"
+                    >
+                      Diensten beheren
+                    </button>
+                    <button
+                      onClick={() => setTab("team")}
+                      className="btn-secondary w-full text-center"
+                    >
+                      Team beheren
+                    </button>
+                    <button
+                      onClick={() => setTab("home")}
+                      className="btn-secondary w-full text-center"
+                    >
+                      Reviews beheren
+                    </button>
+                    <button
+                      onClick={() => setTab("home")}
+                      className="btn-secondary w-full text-center sm:col-span-2"
+                    >
+                      Gallery aanpassen
+                    </button>
+                  </div>
+                </Card>
               </div>
+
+              <Card title="Laatste wijzigingen">
+                {recentUpdates.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nog geen recente wijzigingen.</p>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    {recentUpdates.map((item) => (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2 bg-white/80"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-brand-pink font-semibold text-xs">
+                            {item.type}
+                          </span>
+                          <span className="font-medium text-brand-dark">{item.name}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(item.updated_at).toLocaleString("nl-NL")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
 
               <div className="grid lg:grid-cols-2 gap-6">
                 <Card title="Populaire Diensten">
@@ -783,19 +932,42 @@ export default function Admin() {
                       setTeamForm({ ...teamForm, bio: e.target.value })
                     }
                   />
-                  <input
-                    className="input"
-                    placeholder="Afbeelding URL"
-                    value={teamForm.image_url}
-                    onChange={(e) =>
-                      setTeamForm({ ...teamForm, image_url: e.target.value })
-                    }
-                  />
+                    <input
+                      className="input"
+                      placeholder="Afbeelding URL"
+                      value={teamForm.image_url}
+                      onChange={(e) =>
+                        setTeamForm({ ...teamForm, image_url: e.target.value })
+                      }
+                    />
+                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <span>Focuspunt Y (% voor uitsnede)</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={teamForm.focal_y ?? 50}
+                      onChange={(e) =>
+                        setTeamForm({
+                          ...teamForm,
+                          focal_y: Number(e.target.value),
+                        })
+                      }
+                    />
+                    <span className="text-xs text-gray-500">
+                      {teamForm.focal_y ?? 50}%
+                    </span>
+                  </label>
                   <div className="flex flex-wrap items-center gap-3">
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setTeamFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setTeamFile(file);
+                        if (teamPreview) URL.revokeObjectURL(teamPreview);
+                        setTeamPreview(file ? URL.createObjectURL(file) : null);
+                      }}
                       className="text-sm"
                     />
                     {teamFile && (
@@ -805,6 +977,18 @@ export default function Admin() {
                       </span>
                     )}
                   </div>
+                  {(teamPreview || teamForm.image_url) && (
+                    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                      <img
+                        src={teamPreview || teamForm.image_url}
+                        alt="Teamlid preview"
+                        className="w-full aspect-[16/9] object-cover"
+                        style={{
+                          objectPosition: `50% ${teamForm.focal_y ?? 50}%`,
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="flex gap-3">
                     <button
                       type="submit"
@@ -821,10 +1005,18 @@ export default function Admin() {
                       <button
                         type="button"
                         className="btn-secondary"
-                        onClick={() => setTeamForm(emptyTeam)}
+                        onClick={() => {
+                          setTeamForm(emptyTeam);
+                          setTeamFile(null);
+                          setTeamPreview(null);
+                          setTeamMessage("");
+                        }}
                       >
                         Annuleer
                       </button>
+                    )}
+                    {teamMessage && (
+                      <span className="text-sm text-green-600">{teamMessage}</span>
                     )}
                   </div>
                 </>
@@ -837,7 +1029,8 @@ export default function Admin() {
                         <img
                           src={m.image_url}
                           alt={m.name}
-                          className="h-24 w-full object-cover rounded-lg"
+                          className="w-full aspect-[16/9] object-cover rounded-lg"
+                          style={{ objectPosition: `50% ${m.focal_y ?? 50}%` }}
                         />
                       )}
                       <p className="font-semibold">{m.name}</p>
@@ -845,7 +1038,16 @@ export default function Admin() {
                       <div className="flex gap-3 text-sm">
                         <button
                           className="text-brand-pink"
-                          onClick={() => setTeamForm({ ...m })}
+                        onClick={() => {
+                            setTeamForm({
+                              ...m,
+                              focal_y: m.focal_y ?? 50,
+                            });
+                            setTeamFile(null);
+                            if (teamPreview) URL.revokeObjectURL(teamPreview);
+                            setTeamPreview(null);
+                            setTeamMessage("");
+                          }}
                         >
                           Bewerken
                         </button>
@@ -1020,7 +1222,12 @@ export default function Admin() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setHeroFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setHeroFile(file);
+                        if (heroPreview) URL.revokeObjectURL(heroPreview);
+                        setHeroPreview(file ? URL.createObjectURL(file) : null);
+                      }}
                       className="text-sm"
                     />
                     {heroFile && (
@@ -1030,6 +1237,46 @@ export default function Admin() {
                       </span>
                     )}
                   </div>
+                  {(siteInfo.hero_image_url || heroPreview) && (
+                    <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-4 items-center">
+                      <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                        <img
+                          src={heroPreview || siteInfo.hero_image_url}
+                          alt="Hero preview"
+                          className="w-full h-56 object-cover"
+                          style={{
+                            objectPosition: `50% ${siteInfo.hero_focal_y ?? 50}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-3 text-sm text-gray-700">
+                        <label className="flex flex-col gap-1">
+                          <span className="font-medium">
+                            Focuspunt Y (%)
+                          </span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={siteInfo.hero_focal_y ?? 50}
+                            onChange={(e) =>
+                              setSiteInfo({
+                                ...siteInfo,
+                                hero_focal_y: Number(e.target.value),
+                              })
+                            }
+                          />
+                          <span className="text-xs text-gray-500">
+                            {siteInfo.hero_focal_y ?? 50}%
+                          </span>
+                        </label>
+                        <p className="text-xs text-gray-500">
+                          Verschuif het focuspunt zodat het belangrijkste deel van
+                          de foto zichtbaar blijft.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <button
                       type="submit"
@@ -1291,11 +1538,11 @@ export default function Admin() {
                     )}
                   </div>
                   {(galleryPreview || galleryInput) && (
-                    <div className="border rounded-xl overflow-hidden bg-white shadow-sm max-w-[320px]">
+                    <div className="border rounded-xl overflow-hidden bg-white shadow-sm max-w-[420px]">
                       <img
                         src={galleryPreview || galleryInput}
                         alt="Preview"
-                        className="w-full h-28 object-cover"
+                        className="w-full h-40 object-cover"
                         style={{ objectPosition: `50% ${galleryFocalY}%` }}
                       />
                       <div className="p-3 grid grid-cols-1 gap-3 text-sm text-gray-700">
@@ -1317,21 +1564,21 @@ export default function Admin() {
                   )}
                   {error && <p className="text-sm text-red-600">{error}</p>}
                 </form>
-                <div className="grid sm:grid-cols-3 gap-3">
+                <div className="grid sm:grid-cols-3 gap-4">
                   {gallery.map((g) => (
                     <div
                       key={g.id}
-                      className="relative border rounded-xl overflow-hidden bg-white"
+                      className="relative border rounded-2xl overflow-hidden bg-white shadow-sm"
                     >
                       <img
                         src={g.url}
                         alt="Gallery"
-                        className="w-full h-28 object-cover"
+                        className="w-full h-48 object-cover"
                         style={{
                           objectPosition: `50% ${g.focal_y ?? 50}%`,
                         }}
                       />
-                      <div className="p-2 flex flex-col gap-1 text-xs text-gray-700 bg-white/90">
+                      <div className="p-3 flex flex-col gap-1 text-xs text-gray-700 bg-white/95">
                         <label className="flex items-center gap-2">
                           Y
                           <input
@@ -1776,6 +2023,13 @@ function StatCard({ title, value, icon, color = "text-blue-600" }) {
     </div>
   );
 }
+
+const StatusStat = ({ label, value }) => (
+  <div className="rounded-xl border border-gray-100 bg-white/70 px-3 py-2 shadow-sm">
+    <p className="text-xs text-gray-500">{label}</p>
+    <p className="text-lg font-semibold text-brand-dark">{value}</p>
+  </div>
+);
 
 function Card({ title, children }) {
   return (
